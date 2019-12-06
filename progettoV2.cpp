@@ -11,63 +11,22 @@
 
 using namespace std;
 
-void bfs(vector<vector<int>> &graph, int &node, vector<int> &erdos, int &end) {
-    queue<int> Q;
-    Q.push(node);
-    erdos.resize(0);
-    for (int i = 0; i < graph.size(); i++) {
-        erdos.push_back(-1);
-    }
-    erdos[node] = 0;
-
-    while (!Q.empty()) {
-        int u = Q.front();
-        Q.pop();
-        for (int value : graph[u]) {
-            if (erdos[value] == -1) {
-                erdos[value] = erdos[u] + 1;
-                Q.push(value);
-            }
-            if (value == end) {
-                return;
-            }
-        }
-    }
-}
-
+// vector to save euler walk
 vector<int> euler;
+// vector to save depths of vertices in euler walk
 vector<int> depths;
+// matrix compute the access in O(1) to find operation of the LCA (lowest
+// common ancestor) of a pair of vertexes
 vector<vector<int>> sparseMatrix;
-vector<int> power2;
-vector<int> logN;
+// hash map to map the vertex to the position in euler walk (index)
 unordered_map<int, int> nodesMapping;
-
-/* void dfs(vector<vector<int>> graph, int node) { */
-/*     stack<int> S; */
-/*     S.push(node); */
-/*     vector<bool> visited; */
-/*     for (int i = 0; i < graph.size(); i++) { */
-/*         visited.push_back(false); */
-/*     } */
-/*     while (!S.empty()) { */
-/*         int u = S.top(); */
-/*         S.pop(); */
-/*         if (!visited[u]) { */
-/*             /1* cout << "nodo: " << u << endl; *1/ */
-/*             euler.push_back(u); */
-/*             visited[u] = true; */
-/*             for (int a : graph[u]) { */
-/*                 euler.push_back(a); */
-/*                 /1* cout << "   arco (" << u << ", " << a << ")" << endl; *1/
- */
-/*                 S.push(a); */
-/*             } */
-/*         } */
-/*     } */
-/* } */
 
 void tarjan(vector<vector<int>> &graph) {}
 
+/**
+ *  recursive part of dfs with pre-order visit to populate euler walk and depths
+ * for nodes of the graph
+ */
 void dfsRec(vector<vector<int>> &graph, int &node, vector<bool> &visited,
             int depth) {
     visited[node] = true;
@@ -84,31 +43,20 @@ void dfsRec(vector<vector<int>> &graph, int &node, vector<bool> &visited,
     }
 }
 
+/**
+ * function to call the recursion
+ */
 void dfs(vector<vector<int>> &graph, int node) {
     vector<bool> visited;
     visited.resize(graph.size(), false);
     dfsRec(graph, node, visited, 0);
 }
 
-void preprocess(int N) {
-    power2.resize(17);
-    power2[0] = 1;
-    for (int i = 1; i < 18; ++i) {
-        power2[i] = power2[i - 1] * 2;
-    }
-
-    int val = 1, ptr = 0;
-    logN.resize(N);
-    for (int i = 1; i < N; ++i) {
-        logN[i] = ptr - 1;
-        if (val == i) {
-            val *= 2;
-            logN[i] = ptr;
-            ptr++;
-        }
-    }
-}
-
+/**
+ * fills the matrix[log(euler.size()) + 1][euler.size()] in complexity
+ * O(n*log(n)) to compute the LCA (lowest common ancestor) of a pair of vertices
+ * in O(1). It takes O(n*log(n)) to store the matrix
+ */
 void sparseMatrixComputation() {
     int n = euler.size();
     int h = floor(log2(n));
@@ -138,11 +86,24 @@ void sparseMatrixComputation() {
     /* cout << "-----------------------------------" << endl; */
 }
 
+/**
+ * __builtin_clz function returns the number of zeros before the first occurence
+ * of 1 in the binary rapresentation of the given number. Integer in c++ is
+ * stored in 32 bits, p contains the position of the most significant bit set
+ * to 1. The function uses p to access in the matrix and find the depth of the
+ * LCA
+ */
 int query(int start, int end) {
     int p = 31 - __builtin_clz(end - start);
     return min(sparseMatrix[p][start], sparseMatrix[p][end - (1 << p)]);
 }
 
+/**
+ * takes in input a pair that represents the start and end point of a request.
+ * It computes in O(1) the position in the euler walk and passes it to
+ * query function. This one returns the depths of the LCA so is possibile
+ * to satisfy the request
+ */
 int checkRequest(pair<int, int> request) {
     int start, end;
     start = nodesMapping[request.first];
@@ -184,21 +145,20 @@ int main() {
 
     dfs(graph, 0);
     sparseMatrixComputation();
-    preprocess(graph.size());
-    cout << "eulero e profondita" << endl;
-    int ca = 0;
-    for (int v : euler) {
-        cout << ca++ << " ";
-    }
-    cout << endl;
-    for (int v : euler) {
-        cout << v << " ";
-    }
-    cout << endl;
-    for (int d : depths) {
-        cout << d << " ";
-    }
-    cout << endl;
+    /* cout << "eulero e profondita" << endl; */
+    /* int ca = 0; */
+    /* for (int v : euler) { */
+    /*     cout << ca++ << " "; */
+    /* } */
+    /* cout << endl; */
+    /* for (int v : euler) { */
+    /*     cout << v << " "; */
+    /* } */
+    /* cout << endl; */
+    /* for (int d : depths) { */
+    /*     cout << d << " "; */
+    /* } */
+    /* cout << endl; */
     /* cout << "---------------------------------------------------" << endl; */
     /* cout << "mapping" << endl; */
     /* for (auto x : nodesMapping) { */
