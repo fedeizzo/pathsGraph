@@ -3,8 +3,10 @@
 #include <cmath>
 #include <fstream>
 #include <iostream>
+#include <iterator>
 #include <math.h>
 #include <queue>
+#include <set>
 #include <stack>
 #include <unordered_map>
 #include <vector>
@@ -20,8 +22,80 @@ vector<int> depths;
 vector<vector<int>> sparseMatrix;
 // hash map to map the vertex to the position in euler walk (index)
 unordered_map<int, int> nodesMapping;
+// matrix of cliques where one row is clique and its columns are nodes of the
+// clique
+vector<vector<int>> cliques;
+// number used to identify the cliques (0 for node not inside clique, 1 for node
+// in first clique, 2 for node in second clique and so on)
+vector<int> isInCliqueNumber;
 
-void tarjan(vector<vector<int>> &graph) {}
+int counterCliques = 1;
+
+void printSet(set<int> s) {
+    if (s.size() > 2) {
+        vector<int> clique;
+        for (auto x : s) {
+            clique.push_back(x);
+            isInCliqueNumber[x] = counterCliques;
+        }
+        cliques.push_back(clique);
+        counterCliques++;
+    }
+}
+
+/**
+ * utility function for union of two set
+ */
+set<int> setUnion(set<int> a, set<int> b) {
+    set<int> c;
+    set_union(a.begin(), a.end(), b.begin(), b.end(), inserter(c, c.end()));
+    return c;
+}
+
+/**
+ * utility function for difference of two set
+ */
+set<int> setDifference(set<int> a, set<int> b) {
+    set<int> c;
+    set_difference(a.begin(), a.end(), b.begin(), b.end(),
+                   inserter(c, c.end()));
+    return c;
+}
+
+/**
+ * utility function for intersection of two set
+ */
+set<int> setIntersection(set<int> a, set<int> b) {
+    set<int> c;
+    set_intersection(a.begin(), a.end(), b.begin(), b.end(),
+                     inserter(c, c.end()));
+    return c;
+}
+
+/**
+ * Bron-Kerbosh algorithm two find cliques in undirected graph
+ */
+void bronKerbosh(set<int> R, set<int> P, set<int> X,
+                 vector<vector<int>> &graph) {
+    if (P.empty() && X.empty()) {
+        printSet(R);
+    }
+    set<int>::iterator v = P.begin();
+    while (!P.empty() && v != P.end()) {
+        set<int> singleton = {(*v)};
+        set<int> neigh;
+        for (auto node : graph[(*v)]) {
+            neigh.insert(node);
+        }
+        bronKerbosh(setUnion(R, singleton), setIntersection(P, neigh),
+                    setIntersection(X, neigh), graph);
+        P = setDifference(P, singleton);
+        X = setUnion(X, singleton);
+        if (!P.empty()) {
+            v = P.begin();
+        }
+    }
+}
 
 /**
  *  recursive part of dfs with pre-order visit to populate euler walk and depths
@@ -123,12 +197,12 @@ int checkRequest(pair<int, int> request) {
 int main() {
     ifstream in("input.txt");
     vector<vector<int>> graph;
+    set<int> R, P, X;
     int N, M, Q;
-    vector<int> erdos;
-    vector<int> parent;
     vector<pair<int, int>> request;
     in >> N >> M >> Q;
     graph.resize(N);
+    isInCliqueNumber.resize(N);
     int node1, node2;
 
     for (int i = 0; i < M; ++i) {
@@ -143,8 +217,29 @@ int main() {
         request.push_back(pair<int, int>(start, end));
     }
 
+    for (int i = 0; i < graph.size(); i++) {
+        P.insert(i);
+    }
+
     dfs(graph, 0);
     sparseMatrixComputation();
+    bronKerbosh(R, P, X, graph);
+    /* cout << "---------------------------------------------------" << endl; */
+    /* cout << "cricche: " << endl; */
+    /* for (auto x : cliques) { */
+    /*     for (auto y : x) { */
+    /*         cout << y << " "; */
+    /*     } */
+    /*     cout << endl; */
+    /* } */
+    /* cout << "---------------------------------------------------" << endl; */
+    /* cout << "vettori in cricca: " << endl; */
+    /* for (auto x : isInCliqueNumber) { */
+
+    /*     cout << x << " "; */
+    /* } */
+    /* cout << endl; */
+    /* cout << "---------------------------------------------------" << endl; */
     /* cout << "eulero e profondita" << endl; */
     /* int ca = 0; */
     /* for (int v : euler) { */
