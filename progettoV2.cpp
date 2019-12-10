@@ -188,7 +188,7 @@ void sparseMatrixComputation(vector<vector<pair<int, int>>> &sparseMatrix,
  * @return
  * int LCA --> LCA of the start, end nodes
  * */
-int query(vector<vector<pair<int, int>>> &sparseMatrix, vector<int> euler,
+int query(vector<vector<pair<int, int>>> &sparseMatrix, vector<int> &euler,
           int start, int end) {
     int p = 31 - __builtin_clz(end - start);
     pair<int, int> firstValue = sparseMatrix[p][start];
@@ -235,7 +235,7 @@ int handleRequest(int &start, int &end, vector<int> &nodesMapping,
                   vector<int> &eueler, vector<pair<int, int>> &depths,
                   vector<int> &parent,
                   unordered_map<pair<int, int>, bool, hash_pair> &siblings,
-                  vector<bool> &nodeIsCricca, vector<int> depthCoverTree) {
+                  vector<bool> &nodeIsCricca, vector<int> &depthCoverTree) {
     int cost = 0;
     int startMapped = nodesMapping[start];
     int endMapped = nodesMapping[end];
@@ -247,21 +247,11 @@ int handleRequest(int &start, int &end, vector<int> &nodesMapping,
         query(sparseMatrix, eueler, startMapped, endMapped + 1);
     if (nodeIsCricca[lowestCommonAncestor]) {
         if (start == lowestCommonAncestor) {
-            int travel = parent[end];
-            while (travel != lowestCommonAncestor) {
-                travel = parent[travel];
-                cost++;
-            }
-            cost++;
+            cost = depthCoverTree[end] - depthCoverTree[lowestCommonAncestor];
             return cost;
 
         } else if (end == lowestCommonAncestor) {
-            int travel = parent[start];
-            while (travel != lowestCommonAncestor) {
-                travel = parent[travel];
-                cost++;
-            }
-            cost++;
+            cost = depthCoverTree[start] - depthCoverTree[lowestCommonAncestor];
             return cost;
         } else {
             while (parent[start] != lowestCommonAncestor) {
