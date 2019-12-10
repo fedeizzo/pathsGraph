@@ -1,148 +1,159 @@
 #include <algorithm>
 #include <climits>
 #include <cmath>
+#include <cstdio>
 #include <fstream>
 #include <iostream>
-#include <iterator>
-#include <math.h>
 #include <queue>
-#include <set>
-#include <stack>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 using namespace std;
 
-// Vector to store the euler walk
-vector<int> euler;
+// ------------------- SOURCES ------------------
+/**
+ * (1) BFS --> Montresor's slides
+ * (2) DFS --> Montresor's slides
+ * (3) hash_pair -->
+ * https://www.geeksforgeeks.org/how-to-create-an-unordered_map-of-pairs-in-c/
+ * (4) sparse matrix --> https://brilliant.org/wiki/sparse-table/
+ */
 
-// Vector to store the depths of 
-// vertexes in the euler walk
-vector<int> depths;
-
-// This matrix will compute the access in O(1) to 
-// find operation of the LCA (lowest common ancestor)
-// of a pair of vertexes
-vector<vector<int>> sparseMatrix;
-
-// Hash map to map the vertex to the position in euler walk (index)
-unordered_map<int, int> nodesMapping;
-
-// Matrix of cliques where each row is aclique and 
-// its columns are the nodes of the clique
-vector<vector<int>> cliques;
-
-// Value used to identify the cliques: 0 for node which 
-// don't belong to any clique, 1 for the nodes in the 
-// first clique, 2 for the nodes in the second clique and so on
-vector<int> isInCliqueNumber;
-
-int counterCliques = 1;
-
-void printSet(set<int> s) {
-    if (s.size() > 2) {
-        vector<int> clique;
-        for (auto x : s) {
-            clique.push_back(x);
-            isInCliqueNumber[x] = counterCliques;
-        }
-        cliques.push_back(clique);
-        counterCliques++;
+/**
+ * Structure for allow the use of a pair inside an unordered_map (used to store
+ * siblings) (source 3)
+ */
+struct hash_pair {
+    template <class T1, class T2>
+    size_t operator()(const pair<T1, T2> &p) const {
+        auto hash1 = hash<T1>{}(p.first);
+        auto hash2 = hash<T2>{}(p.second);
+        return hash1 ^ hash2;
     }
-}
+};
 
 /**
- * Utility function to compute the union of two sets
+ * Bfs to travers all node and find a coverTree. During the execution this
+ * function also populate other support structures (source 1)
+ *
+ * @params
+ * vector<vector<int>> graph --> graph
+ * vector<vector<int>> coverTree --> cover tree of the graph
+ * vector<int> parent --> mapping of nodes to the parent
+ * unordered_map<pair<int, int>, bool, hash_pair> &siblings --> list of siblings
+ * vector<bool> nodeIsCricca --> vector to check if a node belong to a clique
+ *
+ * COMPLEXITY: O(n + m)
  */
-set<int> setUnion(set<int> a, set<int> b) {
-    set<int> c;
-    set_union(a.begin(), a.end(), b.begin(), b.end(), inserter(c, c.end()));
-    return c;
-}
+void bfs(vector<vector<int>> &graph, vector<vector<int>> &coverTree,
+         vector<int> &parent,
+         unordered_map<pair<int, int>, bool, hash_pair> &siblings,
+         vector<bool> &nodeIsCricca) {
+    queue<int> Q;
+    vector<bool> visited;
+    visited.resize(graph.size(), false);
+    parent[0] = 0;
+    Q.push(0);
 
-/**
- * Utility function to compute the difference of two sets
- */
-set<int> setDifference(set<int> a, set<int> b) {
-    set<int> c;
-    set_difference(a.begin(), a.end(), b.begin(), b.end(),
-                   inserter(c, c.end()));
-    return c;
-}
-
-/**
- * Utility function to compute the intersection of two sets
- */
-set<int> setIntersection(set<int> a, set<int> b) {
-    set<int> c;
-    set_intersection(a.begin(), a.end(), b.begin(), b.end(),
-                     inserter(c, c.end()));
-    return c;
-}
-
-/**
- * Bron-Kerbosh algorithm to find cliques in an undirected graph
- */
-void bronKerbosh(set<int> R, set<int> P, set<int> X,
-                 vector<vector<int>> &graph) {
-    if (P.empty() && X.empty()) {
-        printSet(R);
-    }
-    set<int>::iterator v = P.begin();
-    while (!P.empty() && v != P.end()) {
-        set<int> singleton = {(*v)};
-        set<int> neigh;
-        for (auto node : graph[(*v)]) {
-            neigh.insert(node);
-        }
-        bronKerbosh(setUnion(R, singleton), setIntersection(P, neigh),
-                    setIntersection(X, neigh), graph);
-        P = setDifference(P, singleton);
-        X = setUnion(X, singleton);
-        if (!P.empty()) {
-            v = P.begin();
+    while (!Q.empty()) {
+        int u = Q.front();
+        Q.pop();
+        for (int value : graph[u]) {
+            if (!visited[value]) {
+                visited[value] = true;
+                coverTree[u].push_back(value);
+                parent[value] = u;
+                Q.push(value);
+            } else if (value != parent[u]) {
+                if (parent[value] == parent[u]) {
+                    siblings[pair<int, int>(u, value)] = true;
+                } else {
+                    siblings[pair<int, int>(value, u)] = true;
+                }
+                nodeIsCricca[value] = true;
+                nodeIsCricca[u] = true;
+                nodeIsCricca[parent[u]] = true;
+            }
         }
     }
 }
 
 /**
  * Recursive part of dfs with pre-order visit; this will
- * populate euler walk and depths for nodes of the graph
+ * populate euler walk and other support structures for nodes of the graph
+ * (source 2)
+ *
+ * @params
+ * vector<vector<int>> graph --> graph
+ * int node --> node used during a step
+ * vector<bool> --> vector to map if a node is already visited during the dfs
+ * int depth --> depth used during a step
+ * vector<int> euler --> euler tour
+ * vector<pair<int,int>> depths--> vector of the depths for the euler tour
+ * vector<int> nodesMapping --> mapping of the nodes to the euler tour
+ * vector<int> depthGraph --> list of depths of the coverTree
+ *
+ * COMPLEXITY: O(n + m)
  */
 void dfsRec(vector<vector<int>> &graph, int &node, vector<bool> &visited,
-            int depth) {
-    visited[node] = true;
+            int depth, vector<int> &euler, vector<pair<int, int>> &depths,
+            vector<int> &nodesMapping, vector<int> &depthGraph) {
     euler.push_back(node);
-    depths.push_back(depth);
-    nodesMapping[node] = euler.size() - 1;
+    depths.push_back(make_pair(depth, euler.size() - 1));
+    if (!visited[node]) {
+        nodesMapping[node] = euler.size() - 1;
+    }
+    visited[node] = true;
+
     for (int a : graph[node]) {
         if (!visited[a]) {
-            dfsRec(graph, a, visited, depth + 1);
+            depthGraph[a] = depthGraph[node] + 1;
+            dfsRec(graph, a, visited, depth + 1, euler, depths, nodesMapping,
+                   depthGraph);
             euler.push_back(node);
-            depths.push_back(depth);
-            nodesMapping[node] = euler.size() - 1;
+            depths.push_back(make_pair(depth, euler.size() - 1));
         }
     }
 }
 
 /**
  * This procedure just creates a vector to keep track of
- * which node gets visited and calls the recursion
+ * which node gets visited and calls the recursion (source 2)
+ *
+ * @params
+ * vector<vector<int>> graph --> graph
+ * int node --> node used during a step
+ * vector<int> euler --> euler tour
+ * vector<pair<int,int>> depths--> vector of the depths for the euler tour
+ * vector<int> nodesMapping --> mapping of the nodes to the euler tour
+ * vector<int> depthGraph --> list of depths of the coverTree
  */
-void dfs(vector<vector<int>> &graph, int node) {
+void dfs(vector<vector<int>> &graph, int node, vector<int> &euler,
+         vector<pair<int, int>> &depths, vector<int> &nodesMapping,
+         vector<int> &depthGraph) {
+    nodesMapping.resize(graph.size());
     vector<bool> visited;
+    int indexMapping = 0;
+    depthGraph[node] = 0;
     visited.resize(graph.size(), false);
-    dfsRec(graph, node, visited, 0);
+    dfsRec(graph, node, visited, indexMapping, euler, depths, nodesMapping,
+           depthGraph);
 }
 
 /**
  * This procedure fills the matrix[log(euler.size()) + 1][euler.size()]
  * in complexity O(n*log(n)); this will allow to compute the
  * LCA (lowest common ancestor) of a pair of vertexes
- * in O(1). It takes O(n*log(n)) to store the matrix
+ * in O(1). It takes O(n*log(n)) to store the matrix (source 4)
+ *
+ * @params
+ * vector<vector<pair<int,int>>> sparseMatrix --> matrix to compute LCA
+ * vector<pair<int,int>> depths--> vector of the depths for the euler tour
  */
-void sparseMatrixComputation() {
-    int n = euler.size();
+void sparseMatrixComputation(vector<vector<pair<int, int>>> &sparseMatrix,
+                             vector<pair<int, int>> &depths) {
+    int n = depths.size();
     int h = floor(log2(n));
     sparseMatrix.resize(log2(n) + 1);
     for (int i = 0; i < sparseMatrix.size(); ++i) {
@@ -157,65 +168,176 @@ void sparseMatrixComputation() {
                                      sparseMatrix[i - 1][j + (1 << (i - 1))]);
         }
     }
-
-    /* cout << "matrice" << endl; */
-    /* cout << "-----------------------------------" << endl; */
-    /* for (vector<int> vec : sparseMatrix) { */
-    /*     for (int v : vec) { */
-    /*         cout << v << " "; */
-    /*     } */
-    /*     cout << endl; */
-    /* } */
-
-    /* cout << "-----------------------------------" << endl; */
 }
 
 /**
  * The __builtin_clz function returns how many zeros occur
- * before the first occurence of 1 in the binary representation 
- * of a given number. Since integers in c++ are 32 bits values, 
+ * before the first occurence of 1 in the binary representation
+ * of a given number. Since integers in c++ are 32 bits values,
  * we subtract from 31 from the number of zeros to get p, defined
- * as the position of the most significant bit set to 1. 
- * The function uses p to access the matrix and 
- * find the depth of the Lowest Common Ancestor
- */
-int query(int start, int end) {
+ * as the position of the most significant bit set to 1.
+ * The function uses p to access the matrix and
+ * find the Lowest Common Ancestor. (source 4)
+ *
+ * @params
+ * vector<vector<pair<int,int>>> sparseMatrix --> matrix to compute LCA
+ * vector<int> euler --> euler tour
+ * int start --> start node
+ * int end --> end node
+ *
+ * @return
+ * int LCA --> LCA of the start, end nodes
+ * */
+int query(vector<vector<pair<int, int>>> &sparseMatrix, vector<int> euler,
+          int start, int end) {
     int p = 31 - __builtin_clz(end - start);
-    return min(sparseMatrix[p][start], sparseMatrix[p][end - (1 << p)]);
+    pair<int, int> firstValue = sparseMatrix[p][start];
+    pair<int, int> secondValue = sparseMatrix[p][end - (1 << p)];
+    if (firstValue.first > secondValue.first) {
+        return euler[secondValue.second];
+    } else {
+        return euler[firstValue.second];
+    }
 }
 
 /**
- * This takes as input a pair containing the start and end nodes of a request.
- * It computes in O(1) the position in the euler walk and passes it to
- * query function, which returns the depths of the LCA and 
- * allow us to have the request done
+ * This function given a request calculate the position inside of the euler tour
+ * of the elements of the request. Then it uses them to calculate LCA. If LCA is
+ * a clique there are some possibilities:
+ *     1. the start node of the request is the LCA => the cost is the amount of;
+ *        step to arrive to the LCA from the end node of the request
+ *     2. same as 1 but with start and end swapped;
+ *     3. nor start and end node of the request is the LCA => the cost is the
+ *        amount of step to arrive to the LCA from both point of the request.
+ *        Then is necessary to check if the last node before the LCA are
+ *        siblings, if so the real cost is less than 1 of the path through the
+ *        LCA.
+ * If LCA is not a clique the cost is evaluated from the depths of the start,
+ * end, LCA nodes.
+ *
+ * @params
+ * int start --> start node of the request
+ * int end --> end node of the request
+ * vector<int> nodesMapping --> mapping of the nodes to the euler tour
+ * vector<vector<pair<int,int>>> sparseMatrix --> matrix to compute LCA
+ * vector<int> euler --> euler tour
+ * vector<pair<int,int>> depths--> vector of the depths for the euler tour
+ * vector<int> parent --> mapping of nodes to the parent
+ * unordered_map<pair<int, int>, bool, hash_pair> &siblings --> list of siblings
+ * vector<bool> nodeIsCricca --> vector to check if a node belong to a clique
+ * vector<int> depthCoverTree --> list of depths of the coverTree
+ *
+ * @return
+ * int cost --> the cost to go from start to end
  */
-int checkRequest(pair<int, int> request) {
-    int start, end;
-    start = nodesMapping[request.first];
-    end = nodesMapping[request.second];
-    if (start > end) {
-        swap(start, end);
+int handleRequest(int &start, int &end, vector<int> &nodesMapping,
+                  vector<vector<pair<int, int>>> &sparseMatrix,
+                  vector<int> &eueler, vector<pair<int, int>> &depths,
+                  vector<int> &parent,
+                  unordered_map<pair<int, int>, bool, hash_pair> &siblings,
+                  vector<bool> &nodeIsCricca, vector<int> depthCoverTree) {
+    int cost = 0;
+    int startMapped = nodesMapping[start];
+    int endMapped = nodesMapping[end];
+    int lowestCommonAncestor;
+    if (startMapped > endMapped) {
+        swap(startMapped, endMapped);
     }
-    /* cout << "start: " << start << endl; */
-    /* cout << "end: " << end << endl; */
-    /* cout << "query: " << query(start, end) << endl; */
+    lowestCommonAncestor =
+        query(sparseMatrix, eueler, startMapped, endMapped + 1);
+    if (nodeIsCricca[lowestCommonAncestor]) {
+        if (start == lowestCommonAncestor) {
+            int travel = parent[end];
+            while (travel != lowestCommonAncestor) {
+                travel = parent[travel];
+                cost++;
+            }
+            cost++;
+            return cost;
 
-    int returnValue = depths[start] + depths[end] - 2 * query(start, end + 1);
-
-    return returnValue;
+        } else if (end == lowestCommonAncestor) {
+            int travel = parent[start];
+            while (travel != lowestCommonAncestor) {
+                travel = parent[travel];
+                cost++;
+            }
+            cost++;
+            return cost;
+        } else {
+            while (parent[start] != lowestCommonAncestor) {
+                start = parent[start];
+                cost++;
+            }
+            while (parent[end] != lowestCommonAncestor) {
+                end = parent[end];
+                cost++;
+            }
+            if (start > end) {
+                if (siblings.find(pair<int, int>(end, start)) !=
+                    siblings.end()) {
+                    cost++;
+                } else {
+                    cost = cost + 2;
+                }
+            } else {
+                if (siblings.find(pair<int, int>(start, end)) !=
+                    siblings.end()) {
+                    cost++;
+                } else {
+                    cost = cost + 2;
+                }
+            }
+        }
+    } else {
+        if (start == lowestCommonAncestor) {
+            cost = (depthCoverTree[end] - depthCoverTree[start]);
+        } else if (end == lowestCommonAncestor) {
+            cost = (depthCoverTree[start] - depthCoverTree[end]);
+        } else {
+            cost = (depthCoverTree[start] + depthCoverTree[end] -
+                    2 * (depthCoverTree[lowestCommonAncestor]));
+        }
+        return cost;
+    }
+    return cost;
 }
 
 int main() {
     ifstream in("input.txt");
+    // Adjacency list for save graph from input
     vector<vector<int>> graph;
-    set<int> R, P, X;
-    int N, M, Q;
+    // Adjacency list for the a cover tree of the graph
+    vector<vector<int>> coverTree;
+    // Vector to save the depth of the nodes inside the cover tree
+    vector<int> depthCoverTree;
+    // Vector to save parents of nodes (relation node<->parent)
+    vector<int> parent;
+    // Vector that map to true if a node belong to a clique
+    vector<bool> nodeIsCricca;
+    // Hash_map to save if there is a couple of nodes that are siblings
+    unordered_map<pair<int, int>, bool, hash_pair> siblings;
+    // Vector of requests read from input
     vector<pair<int, int>> request;
-    in >> N >> M >> Q;
-    graph.resize(N);
-    isInCliqueNumber.resize(N);
+    // Vector to store the euler walk
+    vector<int> euler;
+    // Vector to store the depths of vertexes in the euler walk
+    vector<pair<int, int>> depths;
+    // This matrix will compute the access in O(1) to find operation of the LCA
+    // (lowest common ancestor) of a pair of vertexes
+    vector<vector<pair<int, int>>> sparseMatrix;
+    // Vector to map nodes to positions iniside euler tour
+    vector<int> nodesMapping;
+
+    int N, M, Q;
     int node1, node2;
+
+    in >> N >> M >> Q;
+
+    graph.resize(N);
+    coverTree.resize(N);
+    depthCoverTree.resize(N);
+    parent.resize(N, -1);
+    nodeIsCricca.resize(N, false);
 
     for (int i = 0; i < M; ++i) {
         in >> node1 >> node2;
@@ -229,62 +351,21 @@ int main() {
         request.push_back(pair<int, int>(start, end));
     }
 
-    for (int i = 0; i < graph.size(); i++) {
-        P.insert(i);
-    }
-
-    dfs(graph, 0);
-    sparseMatrixComputation();
-    bronKerbosh(R, P, X, graph);
-    /* cout << "---------------------------------------------------" << endl; */
-    /* cout << "cricche: " << endl; */
-    /* for (auto x : cliques) { */
-    /*     for (auto y : x) { */
-    /*         cout << y << " "; */
-    /*     } */
-    /*     cout << endl; */
-    /* } */
-    /* cout << "---------------------------------------------------" << endl; */
-    /* cout << "vettori in cricca: " << endl; */
-    /* for (auto x : isInCliqueNumber) { */
-
-    /*     cout << x << " "; */
-    /* } */
-    /* cout << endl; */
-    /* cout << "---------------------------------------------------" << endl; */
-    /* cout << "eulero e profondita" << endl; */
-    /* int ca = 0; */
-    /* for (int v : euler) { */
-    /*     cout << ca++ << " "; */
-    /* } */
-    /* cout << endl; */
-    /* for (int v : euler) { */
-    /*     cout << v << " "; */
-    /* } */
-    /* cout << endl; */
-    /* for (int d : depths) { */
-    /*     cout << d << " "; */
-    /* } */
-    /* cout << endl; */
-    /* cout << "---------------------------------------------------" << endl; */
-    /* cout << "mapping" << endl; */
-    /* for (auto x : nodesMapping) { */
-    /*     cout << x.first << " " << x.second << endl; */
-    /* } */
-    /* cout << "---------------------------------------------------" << endl; */
-    /* for (int i : power2) { */
-    /*     cout << i << " "; */
-    /* } */
-    /* cout << endl; */
-    /* for (int i : logN) { */
-    /*     cout << i << " "; */
-    /* } */
-    /* cout << endl; */
-    /* cout << "---------------------------------------------------" << endl; */
     in.close();
+
+    // bfs to compute coverTree
+    bfs(graph, coverTree, parent, siblings, nodeIsCricca);
+    // dfs to compute euler tour and to populate other support structure
+    dfs(coverTree, 0, euler, depths, nodesMapping, depthCoverTree);
+    // Computation of the sparse matrix
+    sparseMatrixComputation(sparseMatrix, depths);
+
     ofstream out("output.txt");
     for (pair<int, int> r : request) {
-        out << checkRequest(r) << endl;
+        out << handleRequest(r.first, r.second, nodesMapping, sparseMatrix,
+                             euler, depths, parent, siblings, nodeIsCricca,
+                             depthCoverTree)
+            << endl;
     }
     out.close();
     return 0;
