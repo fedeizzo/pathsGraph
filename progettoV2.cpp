@@ -209,8 +209,9 @@ int query(vector<vector<pair<int, int>>> &sparseMatrix, vector<int> &euler,
  *     2. same as 1 but with start and end nodes swapped;
  *     3. nor start and end nodes of the request are the LCA => the cost equals the
  *        amount of steps to reach the LCA from both points of the request, in
- *        this case it's necessary to check if the last nodes before the LCA are
- *        siblings, if so 1 is subtracted from the cost of the path through the LCA.
+ *        this case it's necessary to check if the nodes under the LCA are
+ *        siblings, if that's the case the path is 1 step shorter and instead of
+ *        adding 2 steps, only 1 is added to the nodes distance.
  * If LCA is not a clique the cost is evaluated from the depths of the start,
  * end and LCA nodes.
  *
