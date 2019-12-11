@@ -21,7 +21,7 @@ using namespace std;
  */
 
 /**
- * Structure for allow the use of a pair inside an unordered_map (used to store
+ * Structure to allow usage of a pair inside an unordered_map (used to store
  * siblings) (source 3)
  */
 struct hash_pair {
@@ -34,15 +34,15 @@ struct hash_pair {
 };
 
 /**
- * Bfs to travers all node and find a coverTree. During the execution this
- * function also populate other support structures (source 1)
+ * Bfs that traverses all nodes and finds the coverTree. 
+ * This function also populates other support structures (source 1)
  *
  * @params
  * vector<vector<int>> graph --> graph
  * vector<vector<int>> coverTree --> cover tree of the graph
- * vector<int> parent --> mapping of nodes to the parent
+ * vector<int> parent --> map of nodes pointing the parent
  * unordered_map<pair<int, int>, bool, hash_pair> &siblings --> list of siblings
- * vector<bool> nodeIsCricca --> vector to check if a node belong to a clique
+ * vector<bool> nodeIsCricca --> vector to check if a node belongs to a clique
  *
  * COMPLEXITY: O(n + m)
  */
@@ -80,18 +80,18 @@ void bfs(vector<vector<int>> &graph, vector<vector<int>> &coverTree,
 }
 
 /**
- * Recursive part of dfs with pre-order visit; this will
- * populate euler walk and other support structures for nodes of the graph
+ * Recursive part of the dfs with pre-order visit.
+ * This populates the euler walk and other support structures.
  * (source 2)
  *
  * @params
  * vector<vector<int>> graph --> graph
- * int node --> node used during a step
- * vector<bool> --> vector to map if a node is already visited during the dfs
- * int depth --> depth used during a step
+ * int node --> node used during the step
+ * vector<bool> --> vector used to check if a node is already visited during the dfs
+ * int depth --> depth used for the step
  * vector<int> euler --> euler tour
  * vector<pair<int,int>> depths--> vector of the depths for the euler tour
- * vector<int> nodesMapping --> mapping of the nodes to the euler tour
+ * vector<int> nodesMapping --> map of the euler tour nodes
  * vector<int> depthGraph --> list of depths of the coverTree
  *
  * COMPLEXITY: O(n + m)
@@ -118,15 +118,15 @@ void dfsRec(vector<vector<int>> &graph, int &node, vector<bool> &visited,
 }
 
 /**
- * This procedure just creates a vector to keep track of
- * which node gets visited and calls the recursion (source 2)
+ * This procedure creates a vector to keep track of
+ * which node gets visited and calls the function recursively (source 2)
  *
  * @params
  * vector<vector<int>> graph --> graph
- * int node --> node used during a step
+ * int node --> node used for the step
  * vector<int> euler --> euler tour
  * vector<pair<int,int>> depths--> vector of the depths for the euler tour
- * vector<int> nodesMapping --> mapping of the nodes to the euler tour
+ * vector<int> nodesMapping --> map of the euler tour nodes
  * vector<int> depthGraph --> list of depths of the coverTree
  */
 void dfs(vector<vector<int>> &graph, int node, vector<int> &euler,
@@ -143,12 +143,12 @@ void dfs(vector<vector<int>> &graph, int node, vector<int> &euler,
 
 /**
  * This procedure fills the matrix[log(euler.size()) + 1][euler.size()]
- * in complexity O(n*log(n)); this will allow to compute the
+ * in complexity O(n*log(n)) and allows to compute the
  * LCA (lowest common ancestor) of a pair of vertexes
  * in O(1). It takes O(n*log(n)) to store the matrix (source 4)
  *
  * @params
- * vector<vector<pair<int,int>>> sparseMatrix --> matrix to compute LCA
+ * vector<vector<pair<int,int>>> sparseMatrix --> matrix used to compute the LCA
  * vector<pair<int,int>> depths--> vector of the depths for the euler tour
  */
 void sparseMatrixComputation(vector<vector<pair<int, int>>> &sparseMatrix,
@@ -171,16 +171,16 @@ void sparseMatrixComputation(vector<vector<pair<int, int>>> &sparseMatrix,
 }
 
 /**
- * The __builtin_clz function returns how many zeros occur
- * before the first occurence of 1 in the binary representation
- * of a given number. Since integers in c++ are 32 bits values,
+ * The __builtin_clz function returns how many bits set to zero occur
+ * before the first bit set to 1 in the binary representation
+ * of a given number. Since integers in C++ are 32 bits values,
  * we subtract from 31 from the number of zeros to get p, defined
  * as the position of the most significant bit set to 1.
- * The function uses p to access the matrix and
+ * The function uses p to access the matrix and it
  * find the Lowest Common Ancestor. (source 4)
  *
  * @params
- * vector<vector<pair<int,int>>> sparseMatrix --> matrix to compute LCA
+ * vector<vector<pair<int,int>>> sparseMatrix --> matrix used to compute the LCA
  * vector<int> euler --> euler tour
  * int start --> start node
  * int end --> end node
@@ -201,25 +201,24 @@ int query(vector<vector<pair<int, int>>> &sparseMatrix, vector<int> &euler,
 }
 
 /**
- * This function given a request calculate the position inside of the euler tour
+ * This function calculates the position inside the euler tour
  * of the elements of the request. Then it uses them to calculate LCA. If LCA is
- * a clique there are some possibilities:
- *     1. the start node of the request is the LCA => the cost is the amount of;
- *        step to arrive to the LCA from the end node of the request
- *     2. same as 1 but with start and end swapped;
- *     3. nor start and end node of the request is the LCA => the cost is the
- *        amount of step to arrive to the LCA from both point of the request.
- *        Then is necessary to check if the last node before the LCA are
- *        siblings, if so the real cost is less than 1 of the path through the
- *        LCA.
+ * a clique the following cases can occur:
+ *     1. the start node of the request is the LCA => the cost equals the amount of
+ *        steps to reach the LCA from the end node of the request;
+ *     2. same as 1 but with start and end nodes swapped;
+ *     3. nor start and end nodes of the request are the LCA => the cost equals the
+ *        amount of steps to reach the LCA from both points of the request, in
+ *        this case it's necessary to check if the last nodes before the LCA are
+ *        siblings, if so 1 is subtracted from the cost of the path through the LCA.
  * If LCA is not a clique the cost is evaluated from the depths of the start,
- * end, LCA nodes.
+ * end and LCA nodes.
  *
  * @params
  * int start --> start node of the request
  * int end --> end node of the request
- * vector<int> nodesMapping --> mapping of the nodes to the euler tour
- * vector<vector<pair<int,int>>> sparseMatrix --> matrix to compute LCA
+ * vector<int> nodesMapping --> map of the euler tour nodes
+ * vector<vector<pair<int,int>>> sparseMatrix --> matrix used to compute the LCA
  * vector<int> euler --> euler tour
  * vector<pair<int,int>> depths--> vector of the depths for the euler tour
  * vector<int> parent --> mapping of nodes to the parent
@@ -294,28 +293,28 @@ int handleRequest(int &start, int &end, vector<int> &nodesMapping,
 
 int main() {
     ifstream in("input.txt");
-    // Adjacency list for save graph from input
+    // Adjacency list to save graph from input
     vector<vector<int>> graph;
-    // Adjacency list for the a cover tree of the graph
+    // Adjacency list of the graph cover tree 
     vector<vector<int>> coverTree;
-    // Vector to save the depth of the nodes inside the cover tree
+    // Vector containing depth of the nodes inside the cover tree
     vector<int> depthCoverTree;
-    // Vector to save parents of nodes (relation node<->parent)
+    // Vector containing parents of the nodes (relation node<->parent)
     vector<int> parent;
-    // Vector that map to true if a node belong to a clique
+    // Vector that maps true if a node belongs to a clique
     vector<bool> nodeIsCricca;
-    // Hash_map to save if there is a couple of nodes that are siblings
+    // Hash_map containing couples of nodes that are siblings
     unordered_map<pair<int, int>, bool, hash_pair> siblings;
-    // Vector of requests read from input
+    // Vector containing requests read from input
     vector<pair<int, int>> request;
-    // Vector to store the euler walk
+    // Vector containing the euler walk
     vector<int> euler;
-    // Vector to store the depths of vertexes in the euler walk
+    // Vector containing the depths of vertexes in the euler walk
     vector<pair<int, int>> depths;
-    // This matrix will compute the access in O(1) to find operation of the LCA
-    // (lowest common ancestor) of a pair of vertexes
+    // Matrix used to find the LCA (lowest common ancestor) of a pair of vertexes
+    // and computes the access in complexity O(1) 
     vector<vector<pair<int, int>>> sparseMatrix;
-    // Vector to map nodes to positions iniside euler tour
+    // Vector that maps nodes to positions iniside euler tour
     vector<int> nodesMapping;
 
     int N, M, Q;
@@ -343,9 +342,9 @@ int main() {
 
     in.close();
 
-    // bfs to compute coverTree
+    // Bfs to compute coverTree
     bfs(graph, coverTree, parent, siblings, nodeIsCricca);
-    // dfs to compute euler tour and to populate other support structure
+    // Dfs to compute euler tour and to populate other support structure
     dfs(coverTree, 0, euler, depths, nodesMapping, depthCoverTree);
     // Computation of the sparse matrix
     sparseMatrixComputation(sparseMatrix, depths);
